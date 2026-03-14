@@ -1,10 +1,14 @@
 package com.example.Core;
 
 import java.util.Scanner;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.example.Enum.GameStatus;
 import com.example.Enum.Symbol;
+import com.example.Model.Match;
 import com.example.Model.Player;
+import com.example.Observer.GameObserver;
 
 public class Game {
     private Board board;
@@ -12,12 +16,18 @@ public class Game {
     private int currPlayerIdx;
     private GameStatus gameStatus;
     private int n;
+    private List<GameObserver> gameObservers;
+    private ScoreBoard scoreBoard;
 
     public Game(int size, Player[] players) {
         this.board = new Board(size);
         this.n = players.length;
         this.gameStatus = GameStatus.IN_PROGRESS;
         this.players = new Player[n];
+        this.gameObservers = new ArrayList<>();
+        this.scoreBoard = ScoreBoard.getInstance(); // Get singleton instance to maintain history
+
+        initializeObserver();
 
         for (int i = 0; i < n; i++) {
             this.players[i] = players[i];
@@ -63,6 +73,7 @@ public class Game {
             if (isFull) {
                 gameStatus = GameStatus.DRAW;
                 board.printBoard();
+                announceDraw();
                 break;
             }
 
@@ -72,11 +83,32 @@ public class Game {
     }
 
     private void announceWinner(GameStatus status, Player player){
+        //update the match result 
         System.out.println("The game winner is "+ player.getName());
+
+        updateAllObservers(player);
     }
 
-    public void sample(){
-        System.out.println("sample");
+    private void announceDraw(){
+        System.out.println("The game ended in a draw");
+        // Notify observers with null for draw
+        updateAllObservers(null);
     }
-    
+
+    private void initializeObserver(){
+        Match match = new Match(players[0],players[1]);
+        
+        // Set the current match in scoreboard so it can be added to history when game ends
+        scoreBoard.setCurrentMatch(match);
+        
+        // Register both match and scoreboard as observers
+        gameObservers.add(match);
+        gameObservers.add(scoreBoard);
+    }
+
+    private void updateAllObservers(Player winnPlayer){
+        for(GameObserver observer:gameObservers){
+            observer.update(winnPlayer);
+        }
+    }
 }
